@@ -74,9 +74,18 @@ $cmd JOB=1:$nj $dir/log/gop.JOB.log \
   compute-dnn-gop --use-gpu=no $dir/tree $dir/final.mdl $lang/L.fst "$feats" "$ivectors" "$tra" "ark,t:$dir/gop.JOB" "ark,t:$dir/align.JOB" "ark,t:$dir/phoneme_ll.JOB" || exit 1;
 
 # Generate alignment
-$cmd JOB=1:$nj $dir/log/align.JOB.log \
-  linear-to-nbest "ark,t:$dir/align.JOB" "$tra" "" "" "ark:-" \| \
-  lattice-align-words "$lang/phones/word_boundary.int" "$dir/final.mdl" "ark:-" "ark,t:$dir/aligned.JOB" || exit 1;
+if [ -f $lang/phones/word_boundary.int ]; then
+  $cmd JOB=1:$nj $dir/log/align.JOB.log \
+    linear-to-nbest "ark,t:$dir/align.JOB" "$tra" "" "" "ark:-" \| \
+    lattice-align-words "$lang/phones/word_boundary.int" "$dir/final.mdl" "ark:-" "ark,t:$dir/aligned.JOB" || exit 1;
+elif [ -f $lang/phones/align_lexicon.int ]; then
+  $cmd JOB=1:$nj $dir/log/align.JOB.log \
+    linear-to-nbest "ark,t:$dir/align.JOB" "$tra" "" "" "ark:-" \| \
+    lattice-align-words-lexicon "$lang/phones/align_lexicon.int" "$dir/final.mdl" "ark:-" "ark,t:$dir/aligned.JOB" || exit 1;
+else
+    echo "$0: neither $lang/phones/word_boundary.int nor $lang/phones/align_lexicon.int exists: cannot align."
+    exit 1;
+fi
 
 $cmd JOB=1:$nj $dir/log/align_word.JOB.log \
   nbest-to-ctm "ark,t:$dir/aligned.JOB" "$dir/word.JOB.ctm"
